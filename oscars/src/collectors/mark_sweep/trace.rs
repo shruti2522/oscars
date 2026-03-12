@@ -423,6 +423,22 @@ unsafe impl<T: Eq + Hash + Trace, S: BuildHasher> Trace for HashSet<T, S> {
     });
 }
 
+#[cfg(feature = "std")]
+impl Finalize for Path {}
+#[cfg(feature = "std")]
+// SAFETY: `Path` is a leaf type with no inner GC-managed references to trace.
+unsafe impl Trace for Path {
+    empty_trace!();
+}
+
+#[cfg(feature = "std")]
+impl Finalize for PathBuf {}
+#[cfg(feature = "std")]
+// SAFETY: `PathBuf` is a leaf type with no inner GC-managed references to trace.
+unsafe impl Trace for PathBuf {
+    empty_trace!();
+}
+
 impl<T: Eq + Hash + Trace> Finalize for LinkedList<T> {}
 // SAFETY: All the elements of the `LinkedList` are correctly marked.
 unsafe impl<T: Eq + Hash + Trace> Trace for LinkedList<T> {
