@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use crate::alloc::mempool3::PoolAllocator;
+use crate::alloc::mempool3::{PoolAllocator, PoolItem};
 
 pub(crate) type DropFn = unsafe fn(&mut PoolAllocator<'static>, NonNull<u8>);
 
