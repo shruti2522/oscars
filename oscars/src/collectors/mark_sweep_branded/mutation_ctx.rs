@@ -32,11 +32,7 @@ impl<'id, 'gc> MutationContext<'id, 'gc> {
     /// Downgrades a `Gc` into a weak reference
     pub fn alloc_weak<T: Trace + Finalize + 'gc>(&self, gc: Gc<'gc, T>) -> WeakGc<'id, T> {
         let alloc_id = unsafe { (*gc.ptr.as_ptr().as_ptr()).0.alloc_id };
-        WeakGc {
-            ptr: gc.ptr,
-            alloc_id,
-            _marker: PhantomData,
-        }
+        WeakGc::with_pointer(gc.ptr, alloc_id)
     }
 
     /// Promotes a `Gc` pointer to a `Root`

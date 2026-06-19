@@ -24,10 +24,7 @@ impl<'id, K: Trace, V: Trace> Ephemeron<'id, K, V> {
             .key_ptr
             .is_some_and(|p| unsafe { (*p.as_ptr().as_ptr()).0.alloc_id == self.key_alloc_id });
         if key_alive {
-            Some(Gc {
-                ptr: self.value_ptr,
-                _marker: PhantomData,
-            })
+            Some(Gc::with_pointer(self.value_ptr))
         } else {
             None
         }

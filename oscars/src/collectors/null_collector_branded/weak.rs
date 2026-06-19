@@ -21,10 +21,16 @@ impl<'id, T: Trace> WeakGc<'id, T> {
         _cx: &crate::collectors::null_collector_branded::MutationContext<'id, 'gc>,
     ) -> Option<Gc<'gc, T>> {
         // In the null collector, everything stays alive until context drops.
-        Some(Gc {
-            ptr: self.ptr,
+        Some(Gc::with_pointer(self.ptr))
+    }
+}
+
+impl<'id, T: Trace + ?Sized> WeakGc<'id, T> {
+    pub(crate) fn with_pointer(ptr: PoolPointer<'static, GcBox<T>>) -> Self {
+        Self {
+            ptr,
             _marker: PhantomData,
-        })
+        }
     }
 }
 
