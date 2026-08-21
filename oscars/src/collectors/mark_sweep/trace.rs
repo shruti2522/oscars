@@ -54,6 +54,16 @@ pub unsafe trait Trace: Finalize {
     /// - An incorrect implementation may cause undefined behavior
     unsafe fn trace(&self, color: TraceColor);
 
+    /// Unroots handles located in the GC heap.
+    ///
+    /// # Safety
+    ///
+    /// Must only be called by the garbage collector.
+    // TODO: remove in the future
+    #[inline]
+    unsafe fn trace_non_roots(&self) {}
+
+    // TODO: remove in the future
     fn run_finalizer(&self);
 }
 
@@ -432,21 +442,16 @@ unsafe impl<T: Trace> Trace for OnceCell<T> {
     });
 }
 
-/*
 #[cfg(feature = "icu")]
-mod icu {
+mod icu_trace {
     use icu_locale_core::{LanguageIdentifier, Locale};
 
-    use crate::mark_sweep::{Finalize, Trace};
-
-    impl Finalize for LanguageIdentifier {}
+    use crate::mark_sweep::Trace;
 
     // SAFETY: `LanguageIdentifier` doesn't have any traceable data.
     unsafe impl Trace for LanguageIdentifier {
         empty_trace!();
     }
-
-    impl Finalize for Locale {}
 
     // SAFETY: `LanguageIdentifier` doesn't have any traceable data.
     unsafe impl Trace for Locale {
@@ -454,23 +459,9 @@ mod icu {
     }
 }
 
-#[cfg(feature = "boa_string")]
-mod boa_string_trace {
-    use crate::mark_sweep::{Finalize, Trace};
-
-    // SAFETY: `boa_string::JsString` doesn't have any traceable data.
-    unsafe impl Trace for boa_string::JsString {
-        empty_trace!();
-    }
-
-    impl Finalize for boa_string::JsString {}
-}
-
 #[cfg(feature = "either")]
 mod either_trace {
-    use crate::mark_sweep::{Finalize, Trace};
-
-    impl<L: Trace, R: Trace> Finalize for either::Either<L, R> {}
+    use crate::mark_sweep::Trace;
 
     unsafe impl<L: Trace, R: Trace> Trace for either::Either<L, R> {
         custom_trace!(this, mark, {
@@ -481,4 +472,32 @@ mod either_trace {
         });
     }
 }
-*/
+
+#[cfg(feature = "arrayvec")]
+unsafe impl<T: Trace, const N: usize> Trace for arrayvec::ArrayVec<T, N> {
+    custom_trace!(this, mark, {
+        for v in this {
+            mark(v);
+        }
+    });
+}
+
+#[cfg(feature = "std")]
+unsafe impl Trace for std::path::Path {
+    empty_trace!();
+}
+
+#[cfg(feature = "std")]
+unsafe impl Trace for std::path::PathBuf {
+    empty_trace!();
+}
+
+#[cfg(feature = "std")]
+unsafe impl Trace for std::time::Instant {
+    empty_trace!();
+}
+
+#[cfg(feature = "std")]
+unsafe impl Trace for std::time::SystemTime {
+    empty_trace!();
+}

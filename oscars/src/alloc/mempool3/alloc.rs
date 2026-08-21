@@ -89,10 +89,7 @@ impl<'pool, T: ?Sized> PoolPointer<'pool, T> {
         self.0
     }
 
-    pub fn to_erased(self) -> ErasedPoolPointer<'pool>
-    where
-        T: Sized,
-    {
+    pub fn to_erased(self) -> ErasedPoolPointer<'pool> {
         ErasedPoolPointer(self.0.cast::<u8>(), PhantomData)
     }
 
@@ -107,7 +104,7 @@ impl<'pool, T: ?Sized> PoolPointer<'pool, T> {
     }
 }
 
-impl<'pool, T> PoolPointer<'pool, T> {
+impl<'pool, T: ?Sized> PoolPointer<'pool, T> {
     pub(crate) unsafe fn from_raw(raw: NonNull<PoolItem<T>>) -> Self {
         Self(raw, PhantomData)
     }

@@ -1,5 +1,6 @@
 //! The heap header wrapping every GC-managed value.
 
+use core::any::TypeId;
 use core::cell::Cell;
 use core::ptr::NonNull;
 
@@ -23,7 +24,7 @@ pub(crate) enum GcColor {
 /// Heap wrapper for a garbage-collected value.
 ///
 /// Allocated via [`PoolAllocator`].
-pub(crate) struct GcBox<T: ?Sized> {
+pub struct GcBox<T: ?Sized> {
     /// tricolor marking state, updated by the mark phase
     pub(crate) color: Cell<GcColor>,
     /// Type-erased trace function.
@@ -32,6 +33,12 @@ pub(crate) struct GcBox<T: ?Sized> {
     pub(crate) drop_fn: DropFn,
     /// Allocation ID used to validate weak pointers.
     pub(crate) alloc_id: usize,
+    /// Unique identifier for the concrete type `T`.
+    ///
+    /// Stored as `typeid::of::<T>()`. This safely erases branded lifetimes
+    /// (eg. `'gc`) without requiring `T: 'static`, giving us a stable
+    /// unique identity guarantee for sound downcasting.
+    pub(crate) type_id: TypeId,
     /// The user value.
     pub(crate) value: T,
 }
@@ -40,14 +47,17 @@ impl<T: ?Sized> GcBox<T> {
     pub(crate) const FREED_ALLOC_ID: usize = usize::MAX;
 }
 
-impl<T> GcBox<T> {
-    /// Create a [`GcBox`] for `value`, `color` starts as [`GcColor::White`]
+impl<T: Trace> GcBox<T> {
+    /// Create a [`GcBox`] for `value`, `color` starts as [`GcColor::White`].
+    ///
+    /// Requires `T: Trace` for the `TypeId`.
     pub(crate) fn new(value: T, trace_fn: TraceFn, drop_fn: DropFn, alloc_id: usize) -> Self {
         Self {
             color: Cell::new(GcColor::White),
             trace_fn,
             drop_fn,
             alloc_id,
+            type_id: typeid::of::<T>(),
             value,
         }
     }
