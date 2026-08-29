@@ -243,7 +243,7 @@ fn alloc_large_object_success() {
     struct LargeObject {
         _data: [u8; 3000],
     }
-    let a = allocator
+    let _a = allocator
         .try_alloc(LargeObject { _data: [0; 3000] })
         .unwrap();
     assert_eq!(allocator.pools_len(), 1);

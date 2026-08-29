@@ -170,11 +170,18 @@ impl Collector {
 
         for ptr in self.pool.borrow().iter_live_slots() {
             unsafe {
-                let gc_box = &(*ptr.cast::<crate::alloc::mempool3::PoolItem<GcBox<()>>>().as_ptr()).0;
+                let gc_box = &(*ptr
+                    .cast::<crate::alloc::mempool3::PoolItem<GcBox<()>>>()
+                    .as_ptr())
+                .0;
                 if gc_box.root_count.get() > 0 {
                     let trace_fn_ptr = gc_box.trace_fn as *const ();
                     if trace_fn_ptr.is_null() {
-                        panic!("Collector::sweep: trace_fn is NULL for rooted object! alloc_id: {}, root_count: {}", gc_box.alloc_id, gc_box.root_count.get());
+                        panic!(
+                            "Collector::sweep: trace_fn is NULL for rooted object! alloc_id: {}, root_count: {}",
+                            gc_box.alloc_id,
+                            gc_box.root_count.get()
+                        );
                     }
                     (gc_box.trace_fn)(ptr, &mut tracer);
                 }
@@ -230,13 +237,13 @@ impl Collector {
                 })
                 .collect()
         };
-        
+
         for (ptr, _, finalize_fn) in &dead {
             unsafe {
                 (finalize_fn)(*ptr);
             }
         }
-        
+
         {
             let mut pool = self.pool.borrow_mut();
             for (ptr, drop_fn, _) in dead {

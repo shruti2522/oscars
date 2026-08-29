@@ -8,4 +8,4 @@ error[E0521]: borrowed data escapes outside of closure
    |                     -- `cx` is a reference that is only valid in the closure body
 ...
 23 |             holder = Some(Holder { gc });
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `cx` escapes the closure body here
+   |             ^^^^^^ `cx` escapes the closure body here

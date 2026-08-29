@@ -6,7 +6,7 @@ fn ephemeron_value_survives_when_key_is_rooted() {
         let (root_key, eph) = ctx.mutate(|cx| {
             let key = cx.try_alloc(1u32).unwrap();
             let value = cx.try_alloc(42u32).unwrap();
-            let root_key = cx.root(key).unwrap();
+            let root_key = cx.root(key.clone()).unwrap();
             let eph = cx.alloc_ephemeron(&key, value);
             (root_key, eph)
         });
@@ -54,8 +54,8 @@ fn ephemeron_chain_fixpoint() {
             let a = cx.try_alloc(1u32).unwrap();
             let b = cx.try_alloc(2u32).unwrap();
             let c = cx.try_alloc(3u32).unwrap();
-            let root_a = cx.root(a).unwrap();
-            let eph_ab = cx.alloc_ephemeron(&a, b);
+            let root_a = cx.root(a.clone()).unwrap();
+            let eph_ab = cx.alloc_ephemeron(&a, b.clone());
             let eph_bc = cx.alloc_ephemeron(&b, c);
             (root_a, eph_ab, eph_bc)
         });
