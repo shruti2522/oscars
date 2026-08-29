@@ -45,6 +45,7 @@ pub struct Collector {
     pub(crate) sentinel: RootSentinel,
     pub(crate) generic_alloc_id: Cell<usize>,
     pub(crate) ephemerons: RefCell<Vec<EphemeronEntry>>,
+    pub(crate) is_sweeping: Cell<bool>,
 }
 
 impl Default for Collector {
@@ -61,6 +62,7 @@ impl Collector {
             sentinel: RootSentinel::new(),
             generic_alloc_id: Cell::new(0),
             ephemerons: RefCell::new(Vec::new()),
+            is_sweeping: Cell::new(false),
         }
     }
 
@@ -149,6 +151,10 @@ impl Collector {
     }
 
     /// Runs a collection cycle
+    pub fn is_sweeping(&self) -> bool {
+        self.is_sweeping.get()
+    }
+
     pub fn collect(&self) {
         self.collect_with_roots(|_| {})
     }
@@ -161,6 +167,15 @@ impl Collector {
         let mut tracer = Tracer::new();
 
         trace_external(&mut tracer);
+
+        for ptr in self.pool.borrow().iter_live_slots() {
+            unsafe {
+                let gc_box = &(*ptr.cast::<crate::alloc::mempool3::PoolItem<GcBox<()>>>().as_ptr()).0;
+                if gc_box.root_count.get() > 0 {
+                    (gc_box.trace_fn)(ptr, &mut tracer);
+                }
+            }
+        }
 
         for link_ptr in self.sentinel.iter() {
             unsafe {
@@ -197,7 +212,7 @@ impl Collector {
 
         // Phase 3: sweep all slots. Collect unmarked ones, then invalidate and free them.
         use crate::alloc::mempool3::PoolItem;
-        let dead: Vec<(NonNull<u8>, DropFn)> = {
+        let dead: Vec<(NonNull<u8>, DropFn, unsafe fn(NonNull<u8>))> = {
             let pool = self.pool.borrow();
             pool.iter_live_slots()
                 .filter_map(|ptr| unsafe {
@@ -206,14 +221,21 @@ impl Collector {
                         gc_box.color.set(GcColor::White);
                         None
                     } else {
-                        Some((ptr, gc_box.drop_fn))
+                        Some((ptr, gc_box.drop_fn, gc_box.finalize_fn))
                     }
                 })
                 .collect()
         };
+        
+        for (ptr, _, finalize_fn) in &dead {
+            unsafe {
+                (finalize_fn)(*ptr);
+            }
+        }
+        
         {
             let mut pool = self.pool.borrow_mut();
-            for (ptr, drop_fn) in dead {
+            for (ptr, drop_fn, _) in dead {
                 unsafe {
                     (*ptr.cast::<PoolItem<GcBox<()>>>().as_ptr()).0.alloc_id =
                         GcBox::<()>::FREED_ALLOC_ID;

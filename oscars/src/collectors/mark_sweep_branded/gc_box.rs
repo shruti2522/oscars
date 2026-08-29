@@ -29,6 +29,8 @@ pub struct GcBox<T: ?Sized> {
     pub(crate) color: Cell<GcColor>,
     /// Type-erased trace function.
     pub(crate) trace_fn: TraceFn,
+    pub(crate) finalize_fn: unsafe fn(NonNull<u8>),
+    pub(crate) root_count: Cell<usize>,
     /// Type-erased finalize and free fn
     pub(crate) drop_fn: DropFn,
     /// Allocation ID used to validate weak pointers.
@@ -52,9 +54,17 @@ impl<T: Trace> GcBox<T> {
     ///
     /// Requires `T: Trace` for the `TypeId`.
     pub(crate) fn new(value: T, trace_fn: TraceFn, drop_fn: DropFn, alloc_id: usize) -> Self {
+        unsafe fn finalize_node<T: Trace>(ptr: NonNull<u8>) {
+            let item_ptr = ptr.cast::<PoolItem<GcBox<T>>>();
+            unsafe {
+                (*item_ptr.as_ptr()).0.value.run_finalizer();
+            }
+        }
         Self {
             color: Cell::new(GcColor::White),
             trace_fn,
+            finalize_fn: finalize_node::<T>,
+            root_count: Cell::new(1),
             drop_fn,
             alloc_id,
             type_id: typeid::of::<T>(),

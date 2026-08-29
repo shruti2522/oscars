@@ -19,10 +19,23 @@ pub struct Gc<'gc, T: Trace + ?Sized + 'gc> {
     pub(crate) _marker: PhantomData<(&'gc T, *const ())>,
 }
 
-impl<'gc, T: Trace + ?Sized + 'gc> Copy for Gc<'gc, T> {}
 impl<'gc, T: Trace + ?Sized + 'gc> Clone for Gc<'gc, T> {
     fn clone(&self) -> Self {
-        *self
+        let count = unsafe { &(*self.ptr.as_ptr().as_ptr()).0.root_count };
+        count.set(count.get() + 1);
+        Self {
+            ptr: self.ptr,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<'gc, T: Trace + ?Sized + 'gc> Drop for Gc<'gc, T> {
+    fn drop(&mut self) {
+        let count = unsafe { &(*self.ptr.as_ptr().as_ptr()).0.root_count };
+        if count.get() > 0 {
+            count.set(count.get() - 1);
+        }
     }
 }
 
