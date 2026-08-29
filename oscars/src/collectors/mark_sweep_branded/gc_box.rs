@@ -24,6 +24,7 @@ pub(crate) enum GcColor {
 /// Heap wrapper for a garbage-collected value.
 ///
 /// Allocated via [`PoolAllocator`].
+#[repr(C)]
 pub struct GcBox<T: ?Sized> {
     /// tricolor marking state, updated by the mark phase
     pub(crate) color: Cell<GcColor>,
