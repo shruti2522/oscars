@@ -42,6 +42,8 @@ impl<'gc, T: Trace + ?Sized + 'gc> Drop for Gc<'gc, T> {
 impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
     #[inline]
     pub(crate) fn with_pointer(ptr: PoolPointer<'static, GcBox<T>>) -> Self {
+        let count = unsafe { &(*ptr.as_ptr().as_ptr()).0.root_count };
+        count.set(count.get() + 1);
         Self {
             ptr,
             _marker: PhantomData,

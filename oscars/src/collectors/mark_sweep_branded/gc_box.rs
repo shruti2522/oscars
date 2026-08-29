@@ -65,7 +65,7 @@ impl<T: Trace> GcBox<T> {
             color: Cell::new(GcColor::White),
             trace_fn,
             finalize_fn: finalize_node::<T>,
-            root_count: Cell::new(1),
+            root_count: Cell::new(0),
             drop_fn,
             alloc_id,
             type_id: typeid::of::<T>(),
