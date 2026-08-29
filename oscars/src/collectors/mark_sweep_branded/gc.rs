@@ -97,10 +97,12 @@ impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
             .ptr
             .as_ptr()
             .cast::<crate::alloc::mempool3::PoolItem<GcBox<U>>>();
-        Gc {
+        let new_gc = Gc {
             ptr: unsafe { crate::alloc::mempool3::PoolPointer::from_raw(raw) },
             _marker: PhantomData,
-        }
+        };
+        core::mem::forget(self);
+        new_gc
     }
 
     /// Returns `true` if the inner value is of type `U`.
@@ -118,7 +120,7 @@ impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
     #[allow(private_interfaces)]
     pub fn into_raw(self) -> core::ptr::NonNull<crate::alloc::mempool3::PoolItem<GcBox<T>>> {
         let ptr = self.ptr.as_ptr();
-        let _ = self;
+        core::mem::forget(self);
         ptr
     }
 
