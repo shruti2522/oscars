@@ -19,16 +19,31 @@ pub struct Gc<'gc, T: Trace + ?Sized + 'gc> {
     pub(crate) _marker: PhantomData<(&'gc T, *const ())>,
 }
 
-impl<'gc, T: Trace + ?Sized + 'gc> Copy for Gc<'gc, T> {}
 impl<'gc, T: Trace + ?Sized + 'gc> Clone for Gc<'gc, T> {
     fn clone(&self) -> Self {
-        *self
+        let count = unsafe { &(*self.ptr.as_ptr().as_ptr()).0.root_count };
+        count.set(count.get() + 1);
+        Self {
+            ptr: self.ptr,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<'gc, T: Trace + ?Sized + 'gc> Drop for Gc<'gc, T> {
+    fn drop(&mut self) {
+        let count = unsafe { &(*self.ptr.as_ptr().as_ptr()).0.root_count };
+        if count.get() > 0 {
+            count.set(count.get() - 1);
+        }
     }
 }
 
 impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
     #[inline]
     pub(crate) fn with_pointer(ptr: PoolPointer<'static, GcBox<T>>) -> Self {
+        let count = unsafe { &(*ptr.as_ptr().as_ptr()).0.root_count };
+        count.set(count.get() + 1);
         Self {
             ptr,
             _marker: PhantomData,
@@ -84,10 +99,12 @@ impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
             .ptr
             .as_ptr()
             .cast::<crate::alloc::mempool3::PoolItem<GcBox<U>>>();
-        Gc {
+        let new_gc = Gc {
             ptr: unsafe { crate::alloc::mempool3::PoolPointer::from_raw(raw) },
             _marker: PhantomData,
-        }
+        };
+        core::mem::forget(self);
+        new_gc
     }
 
     /// Returns `true` if the inner value is of type `U`.
@@ -105,7 +122,7 @@ impl<'gc, T: Trace + ?Sized + 'gc> Gc<'gc, T> {
     #[allow(private_interfaces)]
     pub fn into_raw(self) -> core::ptr::NonNull<crate::alloc::mempool3::PoolItem<GcBox<T>>> {
         let ptr = self.ptr.as_ptr();
-        let _ = self;
+        core::mem::forget(self);
         ptr
     }
 
