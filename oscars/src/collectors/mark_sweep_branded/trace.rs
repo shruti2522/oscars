@@ -98,14 +98,21 @@ impl<'a> Tracer<'a> {
                 gc_box.color.set(GcColor::Gray);
                 let trace_fn_ptr = gc_box.trace_fn as *const ();
                 if trace_fn_ptr.is_null() {
-                    panic!(
-                        "Tracer::mark: trace_fn is NULL! alloc_id: {}",
-                        gc_box.alloc_id
-                    );
+                    gc_box.color.set(GcColor::Black);
+                } else {
+                    self.worklist
+                        .push((gc.ptr.as_ptr().cast::<u8>(), gc_box.trace_fn));
                 }
-                self.worklist
-                    .push((gc.ptr.as_ptr().cast::<u8>(), gc_box.trace_fn));
             }
+        }
+    }
+
+    #[inline]
+    pub fn mark_non_root<T: Trace + ?Sized>(&mut self, gc: &Gc<'_, T>) {
+        // SAFETY: `gc.ptr` is a valid `PoolItem<GcBox<T>>`.
+        unsafe {
+            let gc_box = &(*gc.ptr.as_ptr().as_ptr()).0;
+            gc_box.non_root_count.set(gc_box.non_root_count.get() + 1);
         }
     }
 
